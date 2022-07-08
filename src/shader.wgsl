@@ -15,12 +15,14 @@ fn vs_main(
     return out;
 }
 
-struct PushConstants {
+struct Uniforms {
     dimensions: vec2<f32>,
     field_of_view: f32,
 }
 
-var<push_constant> pc: PushConstants;
+@group(1)
+@binding(0)
+var<uniform> uniforms: Uniforms;
 
 let PI: f32 = 3.14159265358979323846264338327950288; // 3.14159274
 
@@ -44,16 +46,16 @@ struct Ray {
 /// window's dimensions and aspect ratio. Some of the image
 /// will be cropped if the window's aspect ratio is not square.
 fn pixel_to_square(pixel: vec2<f32>) -> vec2<f32> {
-    let square = ((pixel / pc.dimensions) - 0.5) * 2.0;
+    let square = ((pixel / uniforms.dimensions) - 0.5) * 2.0;
 
     // Scale the window's smaller aspect ratio to make the coordinates square.
     // For example, a 16:9 window will have an x coordinate from -1 to 1 and
     // a y coordinate from -9/16ths to 9/16ths. The rest of the image lying outside
     // of that range will be cropped out.
-    if (pc.dimensions.x > pc.dimensions.y) {
-        return vec2<f32>(square.x, square.y * pc.dimensions.y / pc.dimensions.x);
+    if (uniforms.dimensions.x > uniforms.dimensions.y) {
+        return vec2<f32>(square.x, square.y * uniforms.dimensions.y / uniforms.dimensions.x);
     } else {
-        return vec2<f32>(square.x * pc.dimensions.x / pc.dimensions.y, square.y);
+        return vec2<f32>(square.x * uniforms.dimensions.x / uniforms.dimensions.y, square.y);
     }
 }
 
@@ -129,7 +131,7 @@ fn camera_project(square: vec2<f32>) -> Ray {
     // Our coordinates already range from -1 to 1, corresponding with the
     // edges of the window, but we want the edges of the window to correspond
     // with the angle of the FOV instead.
-    let circle = square * pc.field_of_view / PI;
+    let circle = square * uniforms.field_of_view / PI;
     let sphere = project(circle);
     return Ray(vec3<f32>(0.), sphere);
 }

@@ -12,7 +12,7 @@ struct Vertex {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct PushConstants {
+struct Uniforms {
     dimensions: [f32; 2],
     field_of_view: f32,
 }
@@ -39,6 +39,9 @@ pub struct Graphics  {
     surface_stale: bool,
     desired_size: winit::dpi::PhysicalSize<u32>,
     dither_bind_group: BindGroup,
+    uniform_bind_group: BindGroup,
+    uniform_copy_buffer: Buffer,
+    uniform_buffer: Buffer,
 }
 
 impl Graphics {
@@ -58,11 +61,8 @@ impl Graphics {
         let format = surface.get_supported_formats(&adapter)[0];
         let (device, queue) = adapter.request_device(&DeviceDescriptor {
             label: None,
-            features: Features::PUSH_CONSTANTS,
-            limits: Limits {
-                max_push_constant_size: 128,
-                .. Limits::default()
-            }
+            features: Features::default(),
+            limits: Limits::downlevel_defaults()
         }, None).await.expect("Failed to get wgpu device.");
         let shader = device.create_shader_module(include_wgsl!("shader.wgsl"));
         let dither_texture = device.create_texture_with_data(
@@ -78,7 +78,7 @@ impl Graphics {
                 dimension: TextureDimension::D2,
                 format: TextureFormat::Rgba32Float,
                 usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-                label: Some("dither_texture")
+                label: Some("dither texture")
             },
             bytemuck::cast_slice(&*dither::bayer_texture())
         );
@@ -96,7 +96,7 @@ impl Graphics {
                     count: None,
                 }
             ],
-            label: Some("dither_bind_group_layout")
+            label: Some("dither bind group layout")
         });
         let dither_bind_group = device.create_bind_group(&BindGroupDescriptor {
             layout: &dither_bind_group_layout,
@@ -106,19 +106,51 @@ impl Graphics {
                     resource: BindingResource::TextureView(&dither_texture_view)
                 }
              ],
-            label: Some("dither_bind_group")
-         });
+            label: Some("dither bind group")
+        });
+        let uniform_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("uniform buffer"),
+            size: std::mem::size_of::<Uniforms>().next_power_of_two() as u64,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let uniform_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }
+            ],
+            label: Some("uniform bind group layout"),
+        });
+        let uniform_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            layout: &uniform_bind_group_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buffer.as_entire_binding(),
+                }
+            ],
+            label: Some("uniform bind group"),
+        });
+        let uniform_copy_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("uniform copy buffer"),
+            size: std::mem::size_of::<Uniforms>() as u64,
+            usage: BufferUsages::MAP_WRITE | BufferUsages::COPY_SRC,
+            mapped_at_creation: true,
+        });
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: None,
             layout: Some(&device.create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: None,
-                bind_group_layouts: &[&dither_bind_group_layout],
-                push_constant_ranges: &[
-                    PushConstantRange {
-                        stages: ShaderStages::FRAGMENT,
-                        range: 0..12,
-                    }
-                ]
+                bind_group_layouts: &[&dither_bind_group_layout, &uniform_bind_group_layout],
+                push_constant_ranges: &[]
             })),
             vertex: VertexState {
                 module: &shader,
@@ -178,7 +210,10 @@ impl Graphics {
             vertex_buffer,
             surface_stale: true,
             desired_size,
-            dither_bind_group
+            dither_bind_group,
+            uniform_bind_group,
+            uniform_copy_buffer,
+            uniform_buffer
         }
     }
 
@@ -191,6 +226,16 @@ impl Graphics {
             height: size.height,
             present_mode: PresentMode::Mailbox
         });
+        self.uniform_copy_buffer.slice(..).get_mapped_range_mut().copy_from_slice(bytemuck::cast_slice(&[Uniforms {
+            dimensions: [self.desired_size.width as f32, self.desired_size.height as f32],
+            field_of_view: std::f32::consts::PI,
+        }]));
+        self.uniform_copy_buffer.unmap();
+        // TODO: share encoder/submission
+        let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());
+        encoder.copy_buffer_to_buffer(&self.uniform_copy_buffer, 0, &self.uniform_buffer, 0, std::mem::size_of::<Uniforms>() as u64);
+        self.queue.submit(std::iter::once(encoder.finish()));
+        self.uniform_copy_buffer.slice(..).map_async(MapMode::Write, |err| err.unwrap());
     }
 
     fn reconfigure_surface_if_stale(&mut self) {
@@ -211,8 +256,7 @@ impl Graphics {
         self.reconfigure_surface_if_stale();
         let frame = self.surface.get_current_texture().expect("Failed to get surface texture");
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
-        let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());
-        {
+        let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());        {
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: None,
                 color_attachments: &[
@@ -233,11 +277,8 @@ impl Graphics {
                 depth_stencil_attachment: None
             });
             render_pass.set_pipeline(&self.pipeline);
-            render_pass.set_push_constants(ShaderStages::FRAGMENT, 0, bytemuck::bytes_of(&PushConstants {
-                dimensions: [self.desired_size.width as f32, self.desired_size.height as f32],
-                field_of_view: std::f32::consts::PI,
-            }));
             render_pass.set_bind_group(0, &self.dither_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.uniform_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..VERTICES.len() as u32, 0..1);
         }
