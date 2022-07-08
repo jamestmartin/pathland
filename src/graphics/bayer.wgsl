@@ -42,4 +42,4 @@ fn bayer_bias(_pixel: vec2<u32>) -> vec4<f32> {
         bayer(vec2<u32>(pixel.x, u32(DITHER_SIZE) - pixel.y - u32(1))),
         bayer(vec2<u32>(u32(DITHER_SIZE) - pixel.x - u32(1), u32(DITHER_SIZE) - pixel.y - u32(1)))
     );
-    }*
+}

@@ -97,7 +97,7 @@ features = ["rt", "macros"]
 
 # graphics API
 [dependencies.wgpu]
-version = "0.12.0"
+version = "0.13.1"
 
 # window creation
 [dependencies.winit]

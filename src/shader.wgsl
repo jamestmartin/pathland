@@ -1,12 +1,12 @@
 struct VertexInput {
-    [[location(0)]] position: vec2<f32>;
-};
+    @location(0) position: vec2<f32>,
+}
 
 struct VertexOutput {
-    [[builtin(position)]] position: vec4<f32>;
-};
+    @builtin(position) position: vec4<f32>,
+}
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
     in: VertexInput,
 ) -> VertexOutput {
@@ -16,18 +16,18 @@ fn vs_main(
 }
 
 struct PushConstants {
-    dimensions: vec2<f32>;
-    field_of_view: f32;
-};
+    dimensions: vec2<f32>,
+    field_of_view: f32,
+}
 
 var<push_constant> pc: PushConstants;
 
 let PI: f32 = 3.14159265358979323846264338327950288; // 3.14159274
 
 struct Ray {
-    pos: vec3<f32>; // POSition (aka the origin)
-    dir: vec3<f32>; // DIRection (normalized)
-};
+    pos: vec3<f32>, // POSition (aka the origin)
+    dir: vec3<f32>, // DIRection (normalized)
+}
 
 ///
 /// Convert from pixel coordinates to window-independent square coordinates.
@@ -134,7 +134,8 @@ fn camera_project(square: vec2<f32>) -> Ray {
     return Ray(vec3<f32>(0.), sphere);
 }
 
-[[group(0), binding(0)]]
+@group(0)
+@binding(0)
 var dither_texture: texture_2d<f32>;
 
 /// Apply ordered dithering, which reduces color banding and produces the appearance
@@ -179,8 +180,8 @@ fn clamp_value(_color: vec3<f32>) -> vec3<f32> {
     return hsv2rgb(color);
 }
 
-[[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let ray = camera_project(pixel_to_square(in.position.xy));
     var color = ray.dir / 2.0 + 0.5;
 

@@ -55,7 +55,7 @@ impl Graphics {
                 compatible_surface: Some(&surface)
             }
         ).await.expect("Failed to get wgpu adapter.");
-        let format = surface.get_preferred_format(&adapter).unwrap();
+        let format = surface.get_supported_formats(&adapter)[0];
         let (device, queue) = adapter.request_device(&DeviceDescriptor {
             label: None,
             features: Features::PUSH_CONSTANTS,
@@ -64,7 +64,7 @@ impl Graphics {
                 .. Limits::default()
             }
         }, None).await.expect("Failed to get wgpu device.");
-        let shader = device.create_shader_module(&include_wgsl!("shader.wgsl"));
+        let shader = device.create_shader_module(include_wgsl!("shader.wgsl"));
         let dither_texture = device.create_texture_with_data(
             &queue,
             &TextureDescriptor {
@@ -135,11 +135,11 @@ impl Graphics {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[
-                    ColorTargetState {
+                    Some(ColorTargetState {
                         format,
                         blend: Some(BlendState::REPLACE),
                         write_mask: ColorWrites::ALL
-                    }
+                    })
                 ]
             }),
             primitive: PrimitiveState {
@@ -216,7 +216,7 @@ impl Graphics {
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: None,
                 color_attachments: &[
-                    RenderPassColorAttachment {
+                    Some(RenderPassColorAttachment {
                         view: &view,
                         resolve_target: None,
                         ops: Operations {
@@ -228,7 +228,7 @@ impl Graphics {
                             }),
                             store: true
                         }
-                    }
+                    })
                 ],
                 depth_stencil_attachment: None
             });
