@@ -1,0 +1,13 @@
+*
+!*/
+
+# source code
+!/src/**/*.rs
+!/src/**/*.wgsl
+
+# top-level configuration
+!/.editorconfig
+!/.gitignore
+!/Cargo.lock
+!/Cargo.toml
+!/LICENSE.txt

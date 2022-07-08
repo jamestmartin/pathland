@@ -1,0 +1,110 @@
+[package]
+name = "pathland"
+version = "0.1.0"
+edition = "2021"
+description = ""
+repository = "https://github.com/jamestmartin/pathland"
+license = "0BSD"
+publish = false
+
+[features]
+client = []
+
+server = []
+
+[dependencies]
+
+# brotli (compression format)
+#[dependencies.brotli]
+#version = "3.3"
+
+# use Rust structs like C structs for wgpu
+[dependencies.bytemuck]
+version = "1.9"
+features = ["derive"]
+
+# CBOR (serialization format)
+#[dependencies.ciborium]
+#version = "0.2.0"
+
+# FLAC decoder
+[dependencies.claxon]
+version = "0.4.3"
+
+# audio output
+[dependencies.cpal]
+version = "0.13.5"
+
+# locations of configuration/cache/etc paths
+#[dependencies.directories]
+#version = "4.0"
+
+# logging backend
+[dependencies.fern]
+version = "0.6.1"
+features = ["colored"]
+
+# text rendering
+#[dependencies.fontdue]
+#version = "0.7.2"
+
+# gamepad input
+#[dependencies.gilrs]
+#version = "0.9.0"
+
+# HTTP client
+#[dependencies.hyper]
+#version = "0.14.19"
+#features = ["http2", "client", "runtime"]
+
+# images
+[dependencies.image]
+version = "0.24.2"
+default-features = false
+# for now, no formats; we just use this for manipulating image buffers internally.
+features = []
+
+# logging
+[dependencies.log]
+version = "0.4.17"
+features = ["std"]
+
+# noise functions
+#[dependencies.noise]
+#version = "0.7.0"
+
+# computation parallelism
+#[dependencies.rayon]
+#version = "1.5"
+
+# fast (inverse) fourier transform
+#[dependencies.rustfft]
+#version = "6.0.1"
+
+# serialization
+#[dependencies.serde]
+#version = "1.0"
+
+# async runtime
+[dependencies.tokio]
+version = "1.19"
+# TODO: Is rt-multi-thread faster for our use case?
+features = ["rt", "macros"]
+
+# TOML (configuration format)
+#[dependencies.toml_edit]
+#version = "0.14.4"
+
+# graphics API
+[dependencies.wgpu]
+version = "0.12.0"
+
+# window creation
+[dependencies.winit]
+version = "0.26.1"
+features = ["x11", "wayland"]
+
+[profile.release]
+strip = "symbols"
+lto = "fat"
+codegen-units = 1
