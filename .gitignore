@@ -11,3 +11,13 @@
 !/Cargo.lock
 !/Cargo.toml
 !/LICENSE.txt
+
+# www source code
+!/www/bootstrap.js
+!/www/index.js
+!/www/index.html
+
+# www configuration
+!/www/package.json
+!/www/package-lock.json
+!/www/webpack.config.js

@@ -6,13 +6,14 @@ description = ""
 repository = "https://github.com/jamestmartin/pathland"
 license = "0BSD"
 publish = false
+autobins = false
 
-[features]
-client = []
+[lib]
+crate-type = ["cdylib", "rlib"]
 
-server = []
-
-[dependencies]
+[[bin]]
+name = "pathland"
+path = "src/main.rs"
 
 # brotli (compression format)
 #[dependencies.brotli]
@@ -38,11 +39,6 @@ version = "0.13.5"
 # locations of configuration/cache/etc paths
 #[dependencies.directories]
 #version = "4.0"
-
-# logging backend
-[dependencies.fern]
-version = "0.6.1"
-features = ["colored"]
 
 # text rendering
 #[dependencies.fontdue]
@@ -85,12 +81,6 @@ features = ["std"]
 #[dependencies.serde]
 #version = "1.0"
 
-# async runtime
-[dependencies.tokio]
-version = "1.19"
-# TODO: Is rt-multi-thread faster for our use case?
-features = ["rt", "macros"]
-
 # TOML (configuration format)
 #[dependencies.toml_edit]
 #version = "0.14.4"
@@ -104,7 +94,26 @@ version = "0.13.1"
 version = "0.26.1"
 features = ["x11", "wayland"]
 
+# logging backend
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.fern]
+version = "0.6.1"
+features = ["colored"]
+
+# async runtime
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.tokio]
+version = "1.19"
+# TODO: Is rt-multi-thread faster for our use case?
+features = ["rt"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_log = "0.2.0"
+console_error_panic_hook = "0.1.7"
+wasm-bindgen = "0.2.81"
+wasm-bindgen-futures = "0.4.31"
+web-sys = { version = "0.3.58", features = ["HtmlCanvasElement"] }
+
 [profile.release]
 strip = "symbols"
 lto = "fat"
 codegen-units = 1
+opt-level = "s"

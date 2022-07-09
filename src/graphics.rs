@@ -159,7 +159,7 @@ impl Graphics {
                     VertexBufferLayout {
                         array_stride: std::mem::size_of::<Vertex>() as BufferAddress,
                         step_mode: VertexStepMode::Vertex,
-                        attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x3]
+                        attributes: &vertex_attr_array![0 => Float32x2]
                     }
                 ]
             },
@@ -224,7 +224,7 @@ impl Graphics {
             format: self.surface_format,
             width: size.width,
             height: size.height,
-            present_mode: PresentMode::Mailbox
+            present_mode: PresentMode::AutoVsync
         });
         self.uniform_copy_buffer.slice(..).get_mapped_range_mut().copy_from_slice(bytemuck::cast_slice(&[Uniforms {
             dimensions: [self.desired_size.width as f32, self.desired_size.height as f32],
@@ -235,7 +235,11 @@ impl Graphics {
         let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());
         encoder.copy_buffer_to_buffer(&self.uniform_copy_buffer, 0, &self.uniform_buffer, 0, std::mem::size_of::<Uniforms>() as u64);
         self.queue.submit(std::iter::once(encoder.finish()));
-        self.uniform_copy_buffer.slice(..).map_async(MapMode::Write, |err| err.unwrap());
+        self.uniform_copy_buffer.slice(..).map_async(MapMode::Write, |err| {
+            if let Err(err) = err {
+                log::error!("buffer async error: {}", err);
+            }
+        });
     }
 
     fn reconfigure_surface_if_stale(&mut self) {
