@@ -27,7 +27,7 @@ const VERTICES: &[Vertex] = &[
 
 pub struct Graphics  {
     instance: Instance,
-    window: Window,
+    pub window: Window,
     surface: Surface,
     adapter: Adapter,
     surface_format: TextureFormat,
@@ -35,7 +35,6 @@ pub struct Graphics  {
     queue: Queue,
     shader: ShaderModule,
     pipeline: RenderPipeline,
-    vertex_buffer: Buffer,
     surface_stale: bool,
     desired_size: winit::dpi::PhysicalSize<u32>,
     dither_bind_group: BindGroup,
@@ -64,7 +63,8 @@ impl Graphics {
             features: Features::default(),
             limits: Limits::downlevel_defaults()
         }, None).await.expect("Failed to get wgpu device.");
-        let shader = device.create_shader_module(include_wgsl!("shader.wgsl"));
+        let cover_screen_shader = device.create_shader_module(include_wgsl!("graphics/cover_screen.wgsl"));
+        let shader = device.create_shader_module(include_wgsl!("graphics/shader.wgsl"));
         let dither_texture = device.create_texture_with_data(
             &queue,
             &TextureDescriptor {
@@ -153,15 +153,9 @@ impl Graphics {
                 push_constant_ranges: &[]
             })),
             vertex: VertexState {
-                module: &shader,
+                module: &cover_screen_shader,
                 entry_point: "vs_main",
-                buffers: &[
-                    VertexBufferLayout {
-                        array_stride: std::mem::size_of::<Vertex>() as BufferAddress,
-                        step_mode: VertexStepMode::Vertex,
-                        attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x3]
-                    }
-                ]
+                buffers: &[]
             },
             fragment: Some(FragmentState {
                 module: &shader,
@@ -191,11 +185,6 @@ impl Graphics {
             },
             multiview: None
         });
-        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(VERTICES),
-            usage: BufferUsages::VERTEX
-        });
         let desired_size = window.inner_size();
         Self {
             instance,
@@ -207,7 +196,6 @@ impl Graphics {
             queue,
             shader,
             pipeline,
-            vertex_buffer,
             surface_stale: true,
             desired_size,
             dither_bind_group,
@@ -218,7 +206,6 @@ impl Graphics {
     }
 
     fn reconfigure_surface(&self, size: winit::dpi::PhysicalSize<u32>) {
-        log::debug!("Reconfiguring wgpu surface.");
         self.surface.configure(&self.device, &SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
             format: self.surface_format,
@@ -239,7 +226,6 @@ impl Graphics {
     }
 
     fn reconfigure_surface_if_stale(&mut self) {
-        log::info!("reconfigure");
         if self.surface_stale {
             self.reconfigure_surface(self.desired_size);
             self.surface_stale = false;
@@ -252,7 +238,6 @@ impl Graphics {
     }
 
     pub fn draw(&mut self) {
-        log::info!("redraw");
         self.reconfigure_surface_if_stale();
         let frame = self.surface.get_current_texture().expect("Failed to get surface texture");
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
@@ -279,8 +264,8 @@ impl Graphics {
             render_pass.set_pipeline(&self.pipeline);
             render_pass.set_bind_group(0, &self.dither_bind_group, &[]);
             render_pass.set_bind_group(1, &self.uniform_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..VERTICES.len() as u32, 0..1);
+            //render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.draw(0..5 as u32, 0..1);
         }
         self.queue.submit(std::iter::once(encoder.finish()));
         frame.present();
